@@ -4,115 +4,99 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](#requisitos)
 
-Interfaz gráfica para convertir archivos **PST** (Outlook) a formato **Mbox**, sin necesidad de usar la terminal.
+Interfaz gráfica para convertir archivos **PST** (Outlook) a formato **Mbox**, sin necesidad de utilizar la terminal.
 
-Genera un `.exe` portable que podés compartir con cualquier compañero, sin que necesite Python ni Outlook instalado — solo Outlook de escritorio.
-
----
-
-## Capturas de pantalla
-
-```
-┌──────────────────────────────────────────────────────┐
-│  PST a Mbox Portable                                 │
-├──────────────────────────────────────────────────────┤
-│  Archivo PST:    [________________________] [Examinar]│
-│  Carpeta salida: [________________________] [Elegir]  │
-│  Max MB archivo: [100]                              │
-│  [x] Comprimir cada Mbox en ZIP                     │
-│               [Convertir]                           │
-│  ─────────────────────────────────────────────────  │
-│  Log:                                               │
-│  > Conversion completada. 5 archivos generados.     │
-└──────────────────────────────────────────────────┘
-```
+Genera un ejecutable (`.exe`) portable que puedes compartir con cualquier usuario, sin que necesite tener Python instalado.
 
 ---
 
 ## Características
 
-- **Interfaz gráfica** con Tkinter — sin terminal
-- Conversión batch de archivos PST a Mbox
-- División por tamaño máximo (configurable en MB)
-- Compresión ZIP opcional por archivo generado
-- Log en tiempo real dentro de la ventana
-- **EXE portable** — compartilo sin instalar nada
+- **Interfaz gráfica (GUI)** basada en Tkinter, fácil de utilizar.
+- Conversión por lotes (batch) de carpetas dentro de archivos PST a formato Mbox.
+- División automática de archivos por tamaño máximo (configurable en MB).
+- Compresión ZIP opcional para cada archivo Mbox generado.
+- Registro de eventos (log) en tiempo real integrado en la ventana.
+- **Ejecutable portable**: no requiere instalación.
 
 ---
 
-## Requisitos
+## 🚀 Descarga e Instalación (Recomendado)
 
-- **Windows** (el EXE es portable y no necesita instalación)
-- **Outlook de escritorio** instalado en la PC donde se ejecuta la conversión
-- Sin Python ni dependencias adicionales requeridos por el usuario final
+Para la mayoría de los usuarios, la forma más sencilla de utilizar esta herramienta es descargando el ejecutable precompilado:
 
----
+1. Ve a la sección de **Releases** del repositorio.
+2. Descarga la versión más reciente del archivo `PST2MboxPortable.exe`.
+3. Guárdalo en tu computadora y ejecútalo (no requiere instalación).
 
-## Uso
-
-1. Descargá `PST2MboxPortable.exe` de la carpeta `dist/`
-2. Ejecutalo en cualquier PC con Windows y Outlook
-3. Seleccioná el archivo `.pst`
-4. Elegí la carpeta de salida
-5. Ajustá el tamaño máximo por archivo si es necesario
-6. (Opcional) Activá la compresión ZIP
-7. Click en **Convertir**
+*Nota: Se requiere tener **Microsoft Outlook de escritorio** instalado en la máquina donde se realizará la conversión.*
 
 ---
 
-## Desarrollo
+## Uso de la aplicación
 
-### Requisitos del entorno de desarrollo
+1. Ejecuta `PST2MboxPortable.exe`.
+2. Haz clic en **Seleccionar archivo PST** y elige el archivo que deseas convertir.
+3. Selecciona la carpeta de destino donde se guardarán los archivos Mbox.
+4. (Opcional) Ajusta el tamaño máximo por archivo si necesitas fragmentar los resultados.
+5. (Opcional) Activa la casilla de compresión ZIP si deseas ahorrar espacio.
+6. Haz clic en **Convertir** y espera a que el proceso finalice consultando el panel de registro (log).
 
-- Python 3.8+
-- `pst_to_mbox2.py` (lógica de conversión)
-- `pst_to_mbox_gui.py` (interfaz gráfica)
+---
 
-### Generar el EXE portable
+## 🛠️ Desarrollo y Compilación
+
+Si deseas modificar el código o compilar el ejecutable por tu cuenta, sigue estos pasos:
+
+### Requisitos previos
+
+- Python 3.8 o superior.
+- Microsoft Outlook de escritorio instalado.
+- Dependencias (asegúrate de tener `pyinstaller` si deseas generar el `.exe`).
+
+### Generar el ejecutable portable
+
+En la raíz del proyecto, ejecuta el script de compilación:
 
 ```powershell
 .\build_portable_exe.bat
 ```
 
-El ejecutable se genera en `dist\PST2MboxPortable.exe`.
+El ejecutable final se generará en la ruta `dist\PST2MboxPortable.exe`.
 
-### Personalizar metadatos del EXE
+### Personalizar metadatos del ejecutable
 
-Editá `version_info.txt` antes de compilar:
+Puedes editar el archivo `version_info.txt` antes de compilar para modificar los metadatos del `.exe`:
 
 | Campo              | Descripción                       |
 |--------------------|-----------------------------------|
-| `CompanyName`      | Nombre de la empresa/autor        |
-| `FileDescription`  | Descripción de la app             |
+| `CompanyName`      | Nombre de la empresa o autor      |
+| `FileDescription`  | Descripción de la aplicación      |
 | `ProductName`      | Nombre del producto               |
 | `FileVersion`      | Versión del archivo               |
-| `LegalCopyright`   | Texto de copyright                |
+| `LegalCopyright`   | Texto de derechos de autor (copyright) |
 
 ---
 
-## Estructura del proyecto
+## 📁 Estructura del proyecto
 
-```
-├── pst_to_mbox2.py          # Lógica de conversión (reutilizable)
-├── pst_to_mbox_gui.py       # Interfaz gráfica (Tkinter)
-├── build_portable_exe.bat   # Script para generar el .exe
-├── version_info.txt         # Metadatos del EXE
-├── PST2MboxPortable.spec    # Spec file para PyInstaller
-├── dist/                    # Carpeta de salida del .exe
-├── build/                   # Archivos temporales de build
-└── README.md                # Este archivo
+```text
+├── pst_to_mbox2.py          # Lógica principal de conversión
+├── pst_to_mbox_gui.py       # Lógica de la interfaz gráfica
+├── build_portable_exe.bat   # Script automatizado para compilar
+├── version_info.txt         # Configuración de metadatos para el ejecutable
+└── README.md                # Documentación del proyecto
 ```
 
 ---
 
-## Notas
+## ⚠️ Notas importantes
 
-- Si el PST es grande, la conversión puede tardar varios minutos.
-- En algunos equipos, **Windows Defender** puede bloquear la escritura en `Documentos`. Usá una carpeta local como `Downloads\mbox_output`.
-- El log de la ventana muestra el progreso y errores en tiempo real.
+- **Tiempo de procesamiento:** Los archivos PST de gran tamaño pueden tomar varios minutos en procesarse. Se paciente.
+- **Problemas de permisos:** En algunos equipos, los antivirus o Windows Defender pueden bloquear la escritura en carpetas como `Documentos`. Si experimentas errores, intenta usar tu carpeta de `Descargas` o una ruta en `C:\`.
 
 ---
 
 ## Licencia
 
-MIT © 2026 Mauricio Leyva
+Este proyecto está distribuido bajo la licencia [MIT](LICENSE) © 2026 Mauricio Leyva.

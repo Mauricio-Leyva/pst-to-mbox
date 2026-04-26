@@ -26,5 +26,3 @@ Thumbs.db
 # Temporary files
 *.tmp
 .pst2mbox_write_test.tmp
-
-version_info.txt
