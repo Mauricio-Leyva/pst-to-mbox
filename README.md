@@ -21,7 +21,7 @@ Genera un ejecutable (`.exe`) portable que puedes compartir con cualquier usuari
 
 ---
 
-## 🚀 Descarga e Instalación (Recomendado)
+## Descarga e Instalación (Recomendado)
 
 Para la mayoría de los usuarios, la forma más sencilla de utilizar esta herramienta es descargando el ejecutable precompilado:
 
@@ -44,7 +44,7 @@ Para la mayoría de los usuarios, la forma más sencilla de utilizar esta herram
 
 ---
 
-## 🛠️ Desarrollo y Compilación
+## Desarrollo y Compilación
 
 Si deseas modificar el código o compilar el ejecutable por tu cuenta, sigue estos pasos:
 
@@ -78,7 +78,7 @@ Puedes editar el archivo `version_info.txt` antes de compilar para modificar los
 
 ---
 
-## 📁 Estructura del proyecto
+## Estructura del proyecto
 
 ```text
 ├── pst_to_mbox2.py          # Lógica principal de conversión
@@ -90,7 +90,7 @@ Puedes editar el archivo `version_info.txt` antes de compilar para modificar los
 
 ---
 
-## ⚠️ Notas importantes
+## Notas importantes
 
 - **Tiempo de procesamiento:** Los archivos PST de gran tamaño pueden tomar varios minutos en procesarse. Se paciente.
 - **Problemas de permisos:** En algunos equipos, los antivirus o Windows Defender pueden bloquear la escritura en carpetas como `Documentos`. Si experimentas errores, intenta usar tu carpeta de `Descargas` o una ruta en `C:\`.
