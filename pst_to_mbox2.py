@@ -20,16 +20,17 @@ import os
 import sys
 import tempfile
 import zipfile
+from datetime import datetime
+from pathlib import Path
+
 import email
-import email.utils
+import email.encoders
 import email.message
-import email.mime.multipart
-import email.mime.text
 import email.mime.base
 import email.mime.image
-import email.encoders
-from pathlib import Path
-from datetime import datetime
+import email.mime.multipart
+import email.mime.text
+import email.utils
 
 BYTES_PER_MB   = 1024 * 1024
 MAX_MB_DEFAULT = 490
@@ -137,7 +138,7 @@ def build_message(item, folder_name: str) -> email.message.Message:
     with tempfile.TemporaryDirectory() as tmpdir:
         for i in range(1, att_count + 1):
             try:
-                att  = item.Attachments.Item(i)
+                att = item.Attachments.Item(i)
                 fname = att.FileName or f"adjunto_{i}"
                 tmp_path = os.path.join(tmpdir, fname)
                 att.SaveAsFile(tmp_path)
@@ -168,7 +169,7 @@ def build_message(item, folder_name: str) -> email.message.Message:
                 print(f"    SKIP adjunto {i}: {exc}")
 
         # ── Construir estructura MIME ──────────────────────────────
-        body_html  = ""
+        body_html = ""
         body_plain = safe(item, "Body", "")
         try:
             body_html = item.HTMLBody or ""
@@ -281,7 +282,7 @@ def iter_messages_libratom(pst_path: str):
                     if isinstance(body, str):
                         body = body.encode("utf-8", errors="replace")
                     raw = headers.encode("utf-8", errors="replace") + b"\r\n" + body
-                    em  = email.message_from_bytes(raw)
+                    em = email.message_from_bytes(raw)
                     em["X-PST-Folder"] = folder_name
                     yield folder_name, em
                 except Exception as exc:
@@ -332,7 +333,7 @@ class FolderWriter:
 
     def add(self, em):
         raw = em.as_bytes()
-        sz  = len(raw)
+        sz = len(raw)
         if self.size + sz > self.max_bytes and self.size > 0:
             self._mbox.flush()
             self._mbox.close()
