@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""
-pst_to_mbox.py - Convierte .pst de Outlook a Mbox por carpeta para Roundcube
-Incluye: cuerpo HTML, imagenes embebidas (inline) y adjuntos (pdf, docx, etc.)
+"""Converts Outlook PST files to Mbox format for Roundcube.
 
-INSTALACION (Windows):
-    pip install pywin32
+Includes: HTML body, embedded images (inline), and attachments (pdf, docx, etc.)
 
-Uso:
-    python pst_to_mbox.py correo.pst
-    python pst_to_mbox.py correo.pst --zip
-    python pst_to_mbox.py correo.pst --max-mb 400 --zip
+Usage:
+    python pst_to_mbox2.py correo.pst
+    python pst_to_mbox2.py correo.pst --zip
+    python pst_to_mbox2.py correo.pst --max-mb 400 --zip
 """
+
+from __future__ import annotations
 
 import argparse
 import base64
@@ -22,6 +21,7 @@ import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Generator, NamedTuple, Optional
 
 import email
 import email.encoders
@@ -32,20 +32,34 @@ import email.mime.multipart
 import email.mime.text
 import email.utils
 
-BYTES_PER_MB   = 1024 * 1024
+BYTES_PER_MB = 1024 * 1024
 MAX_MB_DEFAULT = 490
 
+_PROGRESS_BATCH_SIZE = 100
+
 FOLDER_NAMES = {
-    "inbox":         "Entrada",
-    "sent items":    "Enviados",
-    "sent":          "Enviados",
+    "inbox": "Entrada",
+    "sent items": "Enviados",
+    "sent": "Enviados",
     "deleted items": "Eliminados",
-    "drafts":        "Borradores",
-    "junk email":    "Spam",
-    "junk":          "Spam",
-    "outbox":        "Bandeja de salida",
-    "archive":       "Archivo",
+    "drafts": "Borradores",
+    "junk email": "Spam",
+    "junk": "Spam",
+    "outbox": "Bandeja de salida",
+    "archive": "Archivo",
 }
+
+
+class ProgressInfo(NamedTuple):
+    """Progress information for callbacks."""
+
+    stage: str
+    current: int
+    total: int
+    message: str
+
+
+ProgressCallback = Optional[Callable[[ProgressInfo], None]]
 
 
 def normalize_folder_name(raw: str) -> str:
@@ -67,7 +81,22 @@ def outlook_available():
         return False
 
 
-def iter_messages_outlook(pst_path: str):
+def iter_messages_outlook(
+    pst_path: str,
+    progress_callback: ProgressCallback = None,
+    scan_only: bool = False,
+) -> Generator[tuple[str, email.message.Message], None, None]:
+    """Iterates messages from a PST file using Outlook COM.
+
+    Args:
+        pst_path: Path to the PST file.
+        progress_callback: Optional callback to report progress.
+        scan_only: If True, only counts messages without building email objects.
+
+    Yields:
+        Tuples of (folder_name, email_message). When scan_only is True,
+        yields (folder_name, None) and the caller should not use the second value.
+    """
     import win32com.client
     import pythoncom
     pythoncom.CoInitialize()
@@ -76,7 +105,6 @@ def iter_messages_outlook(pst_path: str):
     ns = outlook.GetNamespace("MAPI")
 
     pst_path = str(Path(pst_path).resolve())
-    print(f"  Ruta absoluta: {pst_path}")
 
     for i in range(1, ns.Folders.Count + 1):
         try:
@@ -93,7 +121,11 @@ def iter_messages_outlook(pst_path: str):
     ns.AddStoreEx(pst_path, 3)
     pst_root = ns.Folders.Item(ns.Folders.Count)
 
-    def walk(folder):
+    total_count = 0
+    current = 0
+
+    def walk(folder) -> Generator[tuple[str, Optional[email.message.Message]], None, None]:
+        nonlocal total_count, current
         folder_name = normalize_folder_name(folder.Name)
         items = folder.Items
         for idx in range(1, items.Count + 1):
@@ -101,14 +133,26 @@ def iter_messages_outlook(pst_path: str):
                 item = items.Item(idx)
                 if item.Class != 43:
                     continue
-                yield folder_name, build_message(item, folder_name)
+                total_count += 1
+                if scan_only:
+                    yield folder_name, None
+                else:
+                    yield folder_name, build_message(item, folder_name)
+                current += 1
+                if progress_callback and current % _PROGRESS_BATCH_SIZE == 0:
+                    progress_callback(ProgressInfo(
+                        stage="scan" if scan_only else "convert",
+                        current=current,
+                        total=total_count,
+                        message=f"Scanning... {current} items",
+                    ))
             except Exception as exc:
-                print(f"  SKIP item {idx} en '{folder_name}': {exc}")
+                print(f"  SKIP item {idx} in '{folder_name}': {exc}")
         for j in range(1, folder.Folders.Count + 1):
             try:
                 yield from walk(folder.Folders.Item(j))
             except Exception as exc:
-                print(f"  SKIP subcarpeta: {exc}")
+                print(f"  SKIP subfolder: {exc}")
 
     yield from walk(pst_root)
 
@@ -270,15 +314,34 @@ def libratom_available():
         return False
 
 
-def iter_messages_libratom(pst_path: str):
+def iter_messages_libratom(
+    pst_path: str,
+    progress_callback: ProgressCallback = None,
+    scan_only: bool = False,
+) -> Generator[tuple[str, email.message.Message], None, None]:
+    """Iterates messages from a PST file using libratom.
+
+    Args:
+        pst_path: Path to the PST file.
+        progress_callback: Optional callback to report progress (unused for libratom).
+        scan_only: If True, only counts messages without building email objects.
+
+    Yields:
+        Tuples of (folder_name, email_message). When scan_only is True,
+        yields (folder_name, None).
+    """
+    del progress_callback
     from libratom.lib.pff import PffArchive
     with PffArchive(pst_path) as archive:
+        total_count = sum(1 for _ in archive.folders())
+        current = 0
         for folder in archive.folders():
+            current += 1
             folder_name = normalize_folder_name(getattr(folder, "name", "inbox"))
             for msg in folder.sub_messages:
                 try:
                     headers = msg.transport_headers or ""
-                    body    = msg.plain_text_body or b""
+                    body = msg.plain_text_body or b""
                     if isinstance(body, str):
                         body = body.encode("utf-8", errors="replace")
                     raw = headers.encode("utf-8", errors="replace") + b"\r\n" + body
@@ -292,15 +355,31 @@ def iter_messages_libratom(pst_path: str):
 # ─────────────────────────────────────────────────────────────────────
 #  Seleccion de backend
 # ─────────────────────────────────────────────────────────────────────
-def get_iter_fn():
+def get_iter_fn(
+    progress_callback: ProgressCallback = None,
+    scan_only: bool = False,
+):
+    """Returns the appropriate message iterator function based on available backend.
+
+    Args:
+        progress_callback: Optional callback to report progress.
+        scan_only: If True, only counts messages without building email objects.
+
+    Returns:
+        The iterator function for the available backend.
+    """
     if outlook_available():
         print("Backend: Outlook COM (win32com)")
-        return iter_messages_outlook
+        return lambda pst_path: iter_messages_outlook(
+            pst_path, progress_callback, scan_only
+        )
     if libratom_available():
         print("Backend: libratom")
-        return iter_messages_libratom
+        return lambda pst_path: iter_messages_libratom(
+            pst_path, progress_callback, scan_only
+        )
     print(
-        "\nERROR: No hay backend disponible.\n"
+        "\nERROR: No backend available.\n"
         "Windows: pip install pywin32\n"
         "Linux:   pip install setuptools && pip install libratom\n"
     )
@@ -311,42 +390,59 @@ def get_iter_fn():
 #  Escritor Mbox con division automatica por tamano
 # ─────────────────────────────────────────────────────────────────────
 class FolderWriter:
-    def __init__(self, folder_name, out_path, max_bytes):
+    """Writes messages to mbox files with automatic size-based splitting.
+
+    Attributes:
+        folder_name: Name of the folder being written.
+        out_path: Path to the output directory.
+        max_bytes: Maximum bytes per mbox file before splitting.
+        part: Current part number.
+        size: Current size of the mbox file in bytes.
+        count: Total number of messages written.
+        parts: List of paths to created mbox files.
+    """
+
+    def __init__(self, folder_name: str, out_path: Path, max_bytes: int) -> None:
         self.folder_name = folder_name
-        self.out_path    = out_path
-        self.max_bytes   = max_bytes
-        self.part        = 1
-        self.size        = 0
-        self.count       = 0
-        self.parts       = []
-        self._mbox       = None
+        self.out_path = out_path
+        self.max_bytes = max_bytes
+        self.part = 1
+        self.size = 0
+        self.count = 0
+        self.parts: list[Path] = []
+        self._mbox: Optional[mailbox.mbox] = None
         self._open_new()
 
-    def _open_new(self):
-        fname = (f"{self.folder_name}.mbox" if self.part == 1
-                 else f"{self.folder_name}_parte{self.part:03d}.mbox")
+    def _open_new(self) -> None:
+        """Opens a new mbox file, incrementing part number if needed."""
+        if self.part == 1:
+            fname = f"{self.folder_name}.mbox"
+        else:
+            fname = f"{self.folder_name}_parte{self.part:03d}.mbox"
         p = self.out_path / fname
         if p.exists():
             p.unlink()
         self._mbox = mailbox.mbox(str(p))
         self.parts.append(p)
 
-    def add(self, em):
+    def add(self, em: email.message.Message) -> None:
+        """Adds a message to the mbox file, splitting if size limit exceeded."""
         raw = em.as_bytes()
         sz = len(raw)
         if self.size + sz > self.max_bytes and self.size > 0:
             self._mbox.flush()
             self._mbox.close()
             self.part += 1
-            self.size  = 0
+            self.size = 0
             self._open_new()
         self._mbox.add(em)
-        self.size  += sz
+        self.size += sz
         self.count += 1
-        if self.count % 100 == 0:
+        if self.count % _PROGRESS_BATCH_SIZE == 0:
             self._mbox.flush()
 
-    def close(self):
+    def close(self) -> None:
+        """Closes the current mbox file."""
         if self._mbox:
             self._mbox.flush()
             self._mbox.close()
@@ -356,7 +452,58 @@ class FolderWriter:
 # ─────────────────────────────────────────────────────────────────────
 #  Conversion principal
 # ─────────────────────────────────────────────────────────────────────
-def pst_to_mbox(pst_path, output_dir, max_bytes, do_zip):
+def scan_pst(
+    pst_path: str,
+    progress_callback: ProgressCallback = None,
+) -> dict[str, int]:
+    """Scans a PST file and returns folder message counts.
+
+    Args:
+        pst_path: Path to the PST file.
+        progress_callback: Optional callback to report progress.
+
+    Returns:
+        Dictionary mapping folder names to message counts.
+    """
+    folder_counts: dict[str, int] = {}
+    total = 0
+    iter_fn = get_iter_fn(progress_callback, scan_only=True)
+
+    print(f"\nScanning: {pst_path}")
+
+    for folder_name, _ in iter_fn(pst_path):
+        if folder_name not in folder_counts:
+            folder_counts[folder_name] = 0
+        folder_counts[folder_name] += 1
+        total += 1
+        if total % 100 == 0:
+            print(f"  ... {total} messages scanned", end="\r")
+
+    print(f"\n\nTotal: {total} messages in {len(folder_counts)} folder(s)\n")
+    return folder_counts
+
+
+def pst_to_mbox(
+    pst_path: str,
+    output_dir: str,
+    max_bytes: int,
+    do_zip: bool,
+    progress_callback: ProgressCallback = None,
+    folder_counts: Optional[dict[str, int]] = None,
+) -> list[Path]:
+    """Converts a PST file to mbox format.
+
+    Args:
+        pst_path: Path to the PST file.
+        output_dir: Output directory for mbox files.
+        max_bytes: Maximum bytes per mbox file.
+        do_zip: Whether to compress output files as ZIP.
+        progress_callback: Optional callback to report progress.
+        folder_counts: Optional dictionary of folder -> count for progress tracking.
+
+    Returns:
+        List of output file paths.
+    """
     out_path = Path(output_dir)
     out_path.mkdir(parents=True, exist_ok=True)
 
@@ -366,25 +513,33 @@ def pst_to_mbox(pst_path, output_dir, max_bytes, do_zip):
         except Exception:
             pass
 
-    writers    = {}
-    total      = 0
-    iter_fn    = get_iter_fn()
+    writers: dict[str, FolderWriter] = {}
+    total = 0
+    iter_fn = get_iter_fn(progress_callback, scan_only=False)
 
-    print(f"\nLeyendo: {pst_path}")
-    print(f"Max por archivo: {max_bytes // BYTES_PER_MB} MB\n")
+    print(f"\nReading: {pst_path}")
+    print(f"Max per file: {max_bytes // BYTES_PER_MB} MB\n")
 
     for folder_name, em in iter_fn(pst_path):
         if folder_name not in writers:
             writers[folder_name] = FolderWriter(folder_name, out_path, max_bytes)
-            print(f"  Carpeta detectada: {folder_name}")
+            print(f"  Folder detected: {folder_name}")
         writers[folder_name].add(em)
         total += 1
-        if total % 100 == 0:
-            print(f"  ... {total} mensajes procesados", end="\r")
+        if progress_callback and total % _PROGRESS_BATCH_SIZE == 0:
+            folder_total = folder_counts.get(folder_name, 0) if folder_counts else 0
+            progress_callback(ProgressInfo(
+                stage="convert",
+                current=total,
+                total=folder_counts.get("_total", total) if folder_counts else total,
+                message=f"Converting: {total} messages",
+            ))
+        elif total % 100 == 0:
+            print(f"  ... {total} messages processed", end="\r")
 
-    print(f"\n\nTotal: {total} mensajes en {len(writers)} carpeta(s)\n")
+    print(f"\n\nTotal: {total} messages in {len(writers)} folder(s)\n")
 
-    all_parts = []
+    all_parts: list[Path] = []
     for folder_name, w in writers.items():
         w.close()
         for p in w.parts:
