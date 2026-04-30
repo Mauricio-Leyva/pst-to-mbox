@@ -14,6 +14,7 @@ Genera un ejecutable (`.exe`) portable que puedes compartir con cualquier usuari
 
 - **Interfaz gráfica (GUI)** basada en Tkinter, fácil de utilizar.
 - Conversión por lotes (batch) de carpetas dentro de archivos PST a formato Mbox.
+- Barra de progreso con conteo previo de mensajes.
 - División automática de archivos por tamaño máximo (configurable en MB).
 - Compresión ZIP opcional para cada archivo Mbox generado.
 - Registro de eventos (log) en tiempo real integrado en la ventana.
@@ -21,52 +22,52 @@ Genera un ejecutable (`.exe`) portable que puedes compartir con cualquier usuari
 
 ---
 
-## Descarga e Instalación (Recomendado)
+## Estructura del proyecto
 
-Para la mayoría de los usuarios, la forma más sencilla de utilizar esta herramienta es descargando el ejecutable precompilado:
-
-1. Ve a la sección de **Releases** del repositorio.
-2. Descarga la versión más reciente del archivo `PST2MboxPortable.exe`.
-3. Guárdalo en tu computadora y ejecútalo (no requiere instalación).
-
-*Nota: Se requiere tener **Microsoft Outlook de escritorio** instalado en la máquina donde se realizará la conversión.*
+```
+PST2Mbox/
+├── src/                    # Código fuente
+│   ├── pst_to_mbox2.py     # Lógica principal de conversión
+│   ├── pst_to_mbox_gui.py  # Interfaz gráfica
+│   └── __init__.py         # Package init
+├── scripts/                # Scripts de automatización
+│   └── build_portable_exe.bat  # Compilación del EXE
+├── config/                 # Archivos de configuración
+│   └── version_info.txt    # Metadatos del EXE
+├── docs/                   # Documentación
+├── tests/                  # Tests unitarios
+├── dist/                   # Ejecutables generados (git ignored)
+├── build/                  # Archivos de compilación (git ignored)
+├── README.md
+├── LICENSE
+└── .gitignore
+```
 
 ---
 
-## Uso de la aplicación
+## Requisitos
 
-1. Ejecuta `PST2MboxPortable.exe`.
-2. Haz clic en **Seleccionar archivo PST** y elige el archivo que deseas convertir.
-3. Selecciona la carpeta de destino donde se guardarán los archivos Mbox.
-4. (Opcional) Ajusta el tamaño máximo por archivo si necesitas fragmentar los resultados.
-5. (Opcional) Activa la casilla de compresión ZIP si deseas ahorrar espacio.
-6. Haz clic en **Convertir** y espera a que el proceso finalice consultando el panel de registro (log).
+- Python 3.8 o superior.
+- Microsoft Outlook de escritorio instalado.
+- Dependencias: `pywin32` (Windows)
 
 ---
 
 ## Desarrollo y Compilación
 
-Si deseas modificar el código o compilar el ejecutable por tu cuenta, sigue estos pasos:
-
-### Requisitos previos
-
-- Python 3.8 o superior.
-- Microsoft Outlook de escritorio instalado.
-- Dependencias (asegúrate de tener `pyinstaller` si deseas generar el `.exe`).
-
 ### Generar el ejecutable portable
 
-En la raíz del proyecto, ejecuta el script de compilación:
+En la raíz del proyecto, ejecuta:
 
 ```powershell
-.\build_portable_exe.bat
+.\scripts\build_portable_exe.bat
 ```
 
 El ejecutable final se generará en la ruta `dist\PST2MboxPortable.exe`.
 
 ### Personalizar metadatos del ejecutable
 
-Puedes editar el archivo `version_info.txt` antes de compilar para modificar los metadatos del `.exe`:
+Edita el archivo `config\version_info.txt`:
 
 | Campo              | Descripción                       |
 |--------------------|-----------------------------------|
@@ -78,15 +79,14 @@ Puedes editar el archivo `version_info.txt` antes de compilar para modificar los
 
 ---
 
-## Estructura del proyecto
+## Uso
 
-```text
-├── pst_to_mbox2.py          # Lógica principal de conversión
-├── pst_to_mbox_gui.py       # Lógica de la interfaz gráfica
-├── build_portable_exe.bat   # Script automatizado para compilar
-├── version_info.txt         # Configuración de metadatos para el ejecutable
-└── README.md                # Documentación del proyecto
-```
+1. Ejecuta `PST2MboxPortable.exe`.
+2. Haz clic en **Seleccionar archivo PST** y elige el archivo que deseas convertir.
+3. Selecciona la carpeta de destino donde se guardarán los archivos Mbox.
+4. (Opcional) Ajusta el tamaño máximo por archivo si necesitas fragmentar los resultados.
+5. (Opcional) Activa la casilla de compresión ZIP si deseas ahorrar espacio.
+6. Haz clic en **Convertir** y espera a que el proceso finalice consultando el panel de registro (log).
 
 ---
 
